@@ -8,7 +8,7 @@
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Leaflet Routing Machine CSS -->
+    <!-- Leaflet Routing Machine CSS (podrías usarlo luego si quieres) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
     <!-- Google Fonts -->
@@ -152,10 +152,18 @@
             color: var(--dark-bg);
         }
 
+        .btn-primary:hover {
+            background: #e5bc00;
+        }
+
         .btn-secondary {
             background: transparent;
             color: var(--yellow);
             border: 1px solid var(--yellow);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(252, 209, 22, 0.1);
         }
 
         .btn-success {
@@ -163,8 +171,18 @@
             color: white;
         }
 
+        .btn-danger {
+            background: var(--red);
+            color: white;
+        }
+
         .btn-block {
             width: 100%;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.7rem;
         }
 
         #map {
@@ -206,6 +224,31 @@
 
         .modal-overlay.active .modal {
             transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--yellow);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: var(--red);
         }
     </style>
 </head>
@@ -409,7 +452,8 @@
             </form>
         </div>
     </div>
-    <!-- Estilos adicionales (pueden ir en el body sin problema) -->
+
+    <!-- Estilos adicionales -->
     <style>
         .route-list {
             max-height: 250px;
@@ -437,9 +481,31 @@
             margin-bottom: 8px;
         }
 
+        .route-header-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
         .route-number {
             font-weight: 600;
             color: var(--yellow);
+        }
+
+        .route-mode-tag {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.6);
+            color: #a7f3d0;
+            display: inline-block;
+        }
+
+        .route-actions {
+            display: flex;
+            gap: 4px;
+            align-items: center;
         }
 
         .route-delete {
@@ -639,6 +705,36 @@
             color: var(--text-light);
         }
 
+        .drawing-toolbar {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            z-index: 3500;
+            background: rgba(15, 30, 55, 0.96);
+            border-radius: 10px;
+            border: 1px solid rgba(252, 209, 22, 0.3);
+            padding: 10px 12px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+        }
+
+        .drawing-toolbar span {
+            color: var(--yellow);
+            font-weight: 500;
+        }
+
+        .drawing-toolbar .hint {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        .drawing-toolbar button {
+            padding: 4px 8px;
+            font-size: 0.7rem;
+        }
+
         @media (max-width: 900px) {
             .main-container {
                 grid-template-columns: 1fr;
@@ -659,6 +755,15 @@
     <!-- Notification -->
     <div class="notification" id="notification"></div>
 
+    <!-- Toolbar de dibujo -->
+    <div class="drawing-toolbar" id="drawingToolbar">
+        <span id="drawingStatus">✏️ Modo dibujo</span>
+        <span class="hint">Clic para agregar puntos, ↩ Deshacer, ✅ Finalizar</span>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="undoLastSegment()">↩ Deshacer</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="finishManualDrawing()">✅ Finalizar</button>
+        <button class="btn btn-danger btn-sm" type="button" onclick="cancelManualDrawing()">✕ Cancelar</button>
+    </div>
+
     <!-- Librerías JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -675,8 +780,11 @@
             DEFAULT_ZOOM: 8
         };
 
-        // URL del backend en Vercel (OSRM + conversión UTM)
+        // Backend MINEDUC con OSRM
         const BACKEND_URL = 'https://rutas-escolares.vercel.app/api/route';
+
+        // OSRM público para snapping en modo lápiz
+        const OSRM_PUBLIC_URL = 'https://router.project-osrm.org/route/v1/driving';
 
         // ==================== VARIABLES GLOBALES ====================
         let map;
@@ -684,10 +792,18 @@
         let markers = [];
         let polylines = [];
         let ieEje = null;
+
         const routeColors = [
             '#fcd116', '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
             '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
         ];
+
+        // MODO DIBUJO AVANZADO
+        let drawingMode = false;
+        let drawingRouteId = null;
+        let drawingPolyline = null;
+        let drawingVertexCountsStack = [];
+        let drawingColor = '#fcd116';
 
         // ==================== INICIALIZACIÓN ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -922,15 +1038,56 @@
                     beneficiarios: parseInt(row[col.beneficiarios]) || 0,
                     distancia: parseFloat(row[col.distancia]) || 0,
                     origen:  { x, y },
-                    destino: { x: ieEje.x, y: ieEje.y }
+                    destino: { x: ieEje.x, y: ieEje.y },
+                    mode: 'osrm',           // o 'manual'
+                    manualGeometry: null    // array de {lat, lon} si es manual
                 };
 
                 routes.push(route);
+                // validación + dibujo
                 drawRoute(route);
             }
         }
+
+        // ==================== VALIDACIÓN DE RUTA ====================
+        function validateRoute(route) {
+            const errors = [];
+
+            if (!route.origen || isNaN(route.origen.x) || isNaN(route.origen.y)) {
+                errors.push('Coordenadas UTM de origen inválidas');
+            }
+            if (!route.destino || isNaN(route.destino.x) || isNaN(route.destino.y)) {
+                errors.push('Coordenadas UTM de destino (IE eje) inválidas');
+            }
+            if (route.origen && route.destino) {
+                const dx = Math.abs(route.origen.x - route.destino.x);
+                const dy = Math.abs(route.origen.y - route.destino.y);
+                if (dx < 1 && dy < 1) {
+                    errors.push('Origen y destino coinciden');
+                }
+            }
+            if (route.distancia < 0) {
+                errors.push('Distancia planificada negativa');
+            }
+
+            return {
+                ok: errors.length === 0,
+                errors
+            };
+        }
+
         // ==================== DIBUJO EN MAPA (OSRM + fallback) ====================
         async function drawRoute(route) {
+            // Validación previa "tarea de validación"
+            const validation = validateRoute(route);
+            if (!validation.ok) {
+                showNotification(
+                    `Ruta ${route.numero}: formato inválido, activa dibujo manual (✏️).`,
+                    'error'
+                );
+                return;
+            }
+
             const idx = routes.indexOf(route);
             const color = routeColors[idx >= 0 ? idx % routeColors.length : 0];
 
@@ -1043,6 +1200,7 @@
                 if (!route.distancia || route.distancia <= 0) {
                     route.distancia = distanciaReal;
                 }
+                route.mode = 'osrm';
 
                 showNotification(
                     `Ruta ${route.numero}: ${distanciaReal.toFixed(2)} km (≈ ${data.duration_min} min)`,
@@ -1052,35 +1210,222 @@
             } catch (err) {
                 console.error(err);
                 showNotification(
-                    `Ruta ${route.numero}: no se pudo calcular en OSRM, se dibuja línea directa`,
+                    `Ruta ${route.numero}: no se pudo calcular en OSRM, usa ✏️ Dibujar ruta.`,
                     'error'
                 );
-
-                const polyline = L.polyline(
-                    [
-                        [originLatLon.lat, originLatLon.lon],
-                        [destLatLon.lat, destLatLon.lon]
-                    ],
-                    {
-                        color,
-                        weight: 3,
-                        opacity: 0.8,
-                        dashArray: '10, 10'
-                    }
-                ).bindPopup(`
-                    <div>
-                        <b>Ruta ${route.numero}</b><br>
-                        (Línea directa, sin red vial)<br>
-                        Distancia planificada: ${route.distancia || '-'} km
-                    </div>
-                `).addTo(map);
-
-                polylines.push(polyline);
-
             } finally {
                 showLoading(false);
                 updateUI();
             }
+        }
+
+        // ==================== MODO LÁPIZ TOPOLOGICO (OPCIÓN B) ====================
+        function drawOrEditRoute(routeId) {
+            const route = routes.find(r => r.id == routeId);
+            if (!route) return;
+
+            const validation = validateRoute(route);
+            if (!validation.ok) {
+                showNotification(
+                    `Ruta ${route.numero} con datos incompletos. Se usará modo dibujo manual.`,
+                    'info'
+                );
+            } else {
+                showNotification(
+                    `Ruta ${route.numero}: modo dibujo manual activado sobre la red vial.`,
+                    'info'
+                );
+            }
+            startManualDrawing(route);
+        }
+
+        function startManualDrawing(route) {
+            // Salir de modo anterior si existiera
+            cancelManualDrawing(false);
+
+            drawingMode = true;
+            drawingRouteId = route.id;
+
+            const idx = routes.indexOf(route);
+            drawingColor = routeColors[idx >= 0 ? idx % routeColors.length : 0];
+
+            drawingVertexCountsStack = [];
+
+            const toolbar = document.getElementById('drawingToolbar');
+            document.getElementById('drawingStatus').textContent =
+                `✏️ Dibujando Ruta ${route.numero}`;
+            toolbar.style.display = 'flex';
+
+            map.on('click', handleMapClickManual);
+
+            // Centrar en origen si hay
+            if (route.origen && !isNaN(route.origen.x) && !isNaN(route.origen.y)) {
+                const ll = utmToLatLon(route.origen.x, route.origen.y);
+                map.setView([ll.lat, ll.lon], 14);
+            }
+        }
+
+        async function handleMapClickManual(e) {
+            if (!drawingMode || drawingRouteId == null) return;
+
+            const latlng = e.latlng;
+
+            if (!drawingPolyline) {
+                // Primer punto
+                drawingPolyline = L.polyline([latlng], {
+                    color: drawingColor,
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: '4,6'
+                }).addTo(map);
+                polylines.push(drawingPolyline);
+                drawingVertexCountsStack = [];
+                return;
+            }
+
+            // Segmento nuevo: entre último punto y punto clickeado
+            const latlngs = drawingPolyline.getLatLngs();
+            const last = latlngs[latlngs.length - 1];
+
+            try {
+                const snapped = await osrmSnapSegment(last, latlng);
+                const newPoints = snapped.slice(1); // ya tenemos el primero
+                drawingPolyline.setLatLngs(latlngs.concat(newPoints));
+                drawingVertexCountsStack.push(newPoints.length);
+            } catch (err) {
+                console.error(err);
+                // fallback: línea recta
+                const newPoints = [latlng];
+                drawingPolyline.setLatLngs(latlngs.concat(newPoints));
+                drawingVertexCountsStack.push(newPoints.length);
+            }
+        }
+
+        async function osrmSnapSegment(start, end) {
+            const url =
+                `${OSRM_PUBLIC_URL}/` +
+                `${start.lng},${start.lat};${end.lng},${end.lat}` +
+                `?overview=full&geometries=geojson`;
+
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('OSRM público no disponible');
+
+            const data = await resp.json();
+            if (!data.routes || !data.routes[0]) {
+                throw new Error('Respuesta OSRM vacía');
+            }
+
+            const coords = data.routes[0].geometry.coordinates;
+            // coords: [lon, lat] → Leaflet [lat, lon]
+            return coords.map(([lon, lat]) => L.latLng(lat, lon));
+        }
+
+        function undoLastSegment() {
+            if (!drawingMode || !drawingPolyline) return;
+            if (drawingVertexCountsStack.length === 0) return;
+
+            const n = drawingVertexCountsStack.pop();
+            const latlngs = drawingPolyline.getLatLngs();
+            latlngs.splice(latlngs.length - n, n);
+            drawingPolyline.setLatLngs(latlngs);
+
+            if (latlngs.length <= 1) {
+                // Solo queda el primer punto
+                if (latlngs.length === 0) {
+                    map.removeLayer(drawingPolyline);
+                    drawingPolyline = null;
+                }
+            }
+        }
+
+        function finishManualDrawing() {
+            if (!drawingMode || !drawingPolyline || drawingRouteId == null) {
+                cancelManualDrawing();
+                return;
+            }
+
+            const route = routes.find(r => r.id == drawingRouteId);
+            if (!route) {
+                cancelManualDrawing();
+                return;
+            }
+
+            const latlngs = drawingPolyline.getLatLngs();
+            if (!latlngs || latlngs.length < 2) {
+                showNotification('Dibuja al menos dos puntos para la ruta', 'error');
+                return;
+            }
+
+            // Guardar geometría manual y recalcular distancia
+            route.manualGeometry = latlngs.map(ll => ({ lat: ll.lat, lon: ll.lng }));
+            route.mode = 'manual';
+
+            const distKm = computeDistanceKm(latlngs);
+            route.distancia = distKm;
+
+            // Cambiar estilo para marcar que es manual
+            drawingPolyline.setStyle({
+                color: drawingColor,
+                weight: 4,
+                opacity: 0.95,
+                dashArray: '2,4'
+            });
+            drawingPolyline.bindPopup(`
+                <div>
+                    <b>Ruta ${route.numero} (✏️ manual)</b><br>
+                    Distancia aprox: ${distKm.toFixed(2)} km<br>
+                    Beneficiarios: ${route.beneficiarios}
+                </div>
+            `);
+
+            showNotification(
+                `Ruta ${route.numero} dibujada manualmente: ${distKm.toFixed(2)} km`,
+                'success'
+            );
+
+            cancelManualDrawing();
+            updateUI();
+        }
+
+        function cancelManualDrawing(clearPolyline = false) {
+            drawingMode = false;
+            drawingRouteId = null;
+            drawingVertexCountsStack = [];
+
+            map.off('click', handleMapClickManual);
+
+            const toolbar = document.getElementById('drawingToolbar');
+            toolbar.style.display = 'none';
+
+            if (clearPolyline && drawingPolyline) {
+                map.removeLayer(drawingPolyline);
+            }
+            drawingPolyline = null;
+        }
+
+        function computeDistanceKm(latlngs) {
+            let total = 0;
+            for (let i = 1; i < latlngs.length; i++) {
+                total += haversineDistance(latlngs[i - 1], latlngs[i]);
+            }
+            return total;
+        }
+
+        function haversineDistance(a, b) {
+            const R = 6371; // km
+            const dLat = (b.lat - a.lat) * Math.PI / 180;
+            const dLon = (b.lng - a.lng) * Math.PI / 180;
+            const lat1 = a.lat * Math.PI / 180;
+            const lat2 = b.lat * Math.PI / 180;
+
+            const sinDLat = Math.sin(dLat / 2);
+            const sinDLon = Math.sin(dLon / 2);
+
+            const h = sinDLat * sinDLat +
+                      Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+
+            const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+            return R * c;
         }
 
         // ==================== UI DE RUTAS Y ESTADÍSTICAS ====================
@@ -1095,13 +1440,28 @@
                     </div>
                 `;
             } else {
-                routeList.innerHTML = routes.map((route, idx) => `
+                routeList.innerHTML = routes.map((route, idx) => {
+                    const color = routeColors[idx % routeColors.length];
+                    const modeTag =
+                        route.mode === 'manual'
+                            ? '<span class="route-mode-tag">✏️ Manual</span>'
+                            : '<span class="route-mode-tag" style="border-color:#3b82f6;color:#bfdbfe;background:rgba(59,130,246,0.1);">🧠 OSRM</span>';
+
+                    return `
                     <div class="route-item">
                         <div class="route-header">
-                            <span class="route-number" style="color:${routeColors[idx % routeColors.length]}">
-                                🚌 Ruta ${route.numero}
-                            </span>
-                            <button class="route-delete" onclick="deleteRoute('${route.id}')">✕</button>
+                            <div class="route-header-left">
+                                <span class="route-number" style="color:${color}">
+                                    🚌 Ruta ${route.numero}
+                                </span>
+                                ${modeTag}
+                            </div>
+                            <div class="route-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="drawOrEditRoute('${route.id}')">
+                                    ✏️ Dibujar ruta
+                                </button>
+                                <button class="route-delete" onclick="deleteRoute('${route.id}')">✕</button>
+                            </div>
                         </div>
                         <div class="route-info">
                             <span>📍 AMIE Origen: ${route.amieFusionada || '-'}</span>
@@ -1109,7 +1469,8 @@
                             <span>📏 Distancia: ${route.distancia ? route.distancia.toFixed(2) : '-'} km</span>
                         </div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             document.getElementById('routeCount').textContent    = routes.length;
@@ -1131,14 +1492,38 @@
 
         function clearRoutes() {
             markers.forEach(m => map.removeLayer(m));
-            polylines.forEach(p => map.removeLayer(p));
+            polylines.forEach(p => {
+                if (map.hasLayer(p)) map.removeLayer(p);
+            });
             markers = [];
             polylines = [];
         }
 
         function redrawMap() {
             clearRoutes();
-            routes.forEach(route => drawRoute(route));
+            routes.forEach(route => {
+                // Solo redibujamos con OSRM para rutas OSRM
+                if (route.mode === 'osrm') {
+                    drawRoute(route);
+                } else if (route.mode === 'manual' && route.manualGeometry) {
+                    const idx = routes.indexOf(route);
+                    const color = routeColors[idx >= 0 ? idx % routeColors.length : 0];
+                    const latlngs = route.manualGeometry.map(p => L.latLng(p.lat, p.lon));
+                    const polyline = L.polyline(latlngs, {
+                        color,
+                        weight: 4,
+                        opacity: 0.95,
+                        dashArray: '2,4'
+                    }).bindPopup(`
+                        <div>
+                            <b>Ruta ${route.numero} (✏️ manual)</b><br>
+                            Distancia aprox: ${route.distancia.toFixed(2)} km<br>
+                            Beneficiarios: ${route.beneficiarios}
+                        </div>
+                    `).addTo(map);
+                    polylines.push(polyline);
+                }
+            });
         }
 
         function clearAll() {
@@ -1191,21 +1576,32 @@
                 destino: {
                     x: parseFloat(document.getElementById('destX').value),
                     y: parseFloat(document.getElementById('destY').value)
-                }
+                },
+                mode: 'osrm',
+                manualGeometry: null
             };
 
-            if (isNaN(route.origen.x) || isNaN(route.origen.y)) {
-                showNotification('Coordenadas de origen inválidas', 'error');
-                return;
+            const validation = validateRoute(route);
+            routes.push(route);
+
+            if (!validation.ok) {
+                showNotification(
+                    `Ruta ${route.numero}: datos incompletos, se usará modo dibujo manual.`,
+                    'info'
+                );
+                updateUI();
+                openModal(); // cerramos y reabrimos si quieres, pero mejor:
+                closeModal();
+                drawOrEditRoute(route.id);
+            } else {
+                drawRoute(route);
+                updateUI();
+                closeModal();
+                showNotification('Ruta agregada correctamente', 'success');
+                centerMap();
             }
 
-            routes.push(route);
-            drawRoute(route);
-            updateUI();
-            closeModal();
             document.getElementById('routeForm').reset();
-            showNotification('Ruta agregada correctamente', 'success');
-            centerMap();
         }
 
         // ==================== EXPORTAR JPG ====================
