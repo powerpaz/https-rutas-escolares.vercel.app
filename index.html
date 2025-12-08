@@ -944,110 +944,136 @@
         }
 
         function extractIEEje(data) {
-            ieEje = { nombre: '', amie: '', distrito: '', x: null, y: null };
 
-            for (let i = 0; i < Math.min(10, data.length); i++) {
-                const row = data[i];
-                if (!row) continue;
+    // Creamos estructura vacía
+    ieEje = { nombre: "", amie: "", distrito: "", x: null, y: null };
 
-                for (let j = 0; j < row.length; j++) {
-                    const cell = String(row[j] || '').toUpperCase();
+    // SOLO buscamos en primeras 15 filas
+    for (let i = 0; i < 15; i++) {
+        const row = data[i];
+        if (!row) continue;
 
-                    if (cell.includes('AMIE') && cell.includes('EJE')) {
-                        ieEje.amie = row[j + 1] || '';
-                    }
-                    if (cell.includes('NOMBRE') && cell.includes('EDUCATIVA') && cell.includes('EJE')) {
-                        ieEje.nombre = row[j + 1] || '';
-                    }
-                    if (cell.includes('NOMBRE') && cell.includes('DISTRITO')) {
-                        ieEje.distrito = row[j + 1] || '';
-                    }
-                    if (cell === 'COORDENADA X' || cell === 'COORDENADAS X') {
-                        const val = parseFloat(row[j + 1]);
-                        if (!isNaN(val) && val > 100000) ieEje.x = val;
-                    }
-                    if (cell === 'COORDENADAS Y' || cell === 'COORDENADA Y') {
-                        const val = parseFloat(row[j + 1]);
-                        if (!isNaN(val) && val > 100000) ieEje.y = val;
-                    }
-                }
+        for (let j = 0; j < row.length; j++) {
+            const cell = String(row[j] || "").toUpperCase().trim();
+
+            // AMIE IE EJE
+            if (cell.includes("AMIE IE EJE") || cell.includes("AMIE IE EJE:")) {
+                ieEje.amie = row[j + 1] || "";
             }
 
-            if (ieEje.nombre || ieEje.amie) {
-                document.getElementById('ieInfoSection').style.display = 'block';
-                document.getElementById('ieNombre').textContent   = ieEje.nombre || '-';
-                document.getElementById('ieAmie').textContent      = 'AMIE: ' + (ieEje.amie || '-');
-                document.getElementById('ieDistrito').textContent  = 'Distrito: ' + (ieEje.distrito || '-');
+            // NOMBRE IE EJE
+            if (cell.includes("NOMBRE UNIDAD EDUCATIVA EJE")) {
+                ieEje.nombre = row[j + 1] || "";
+            }
 
-                if (ieEje.x && ieEje.y) {
-                    const coords = utmToLatLon(ieEje.x, ieEje.y);
-                    document.getElementById('ieCoords').textContent =
-                        `Lat: ${coords.lat.toFixed(6)}, Lon: ${coords.lon.toFixed(6)}`;
-                }
+            // DISTRITO
+            if (cell.includes("NOMBRE DISTRITO")) {
+                ieEje.distrito = row[j + 1] || "";
+            }
+
+            // Coordenada X (IE eje)
+            if (cell === "COORDENADA X" || cell === "COORDENADAS X") {
+                const val = parseFloat(row[j + 1]);
+                if (!isNaN(val) && val > 100000) ieEje.x = val;
+            }
+
+            // Coordenada Y (IE eje)
+            if (cell === "COORDENADA Y" || cell === "COORDENADAS Y") {
+                const val = parseFloat(row[j + 1]);
+                if (!isNaN(val) && val > 100000) ieEje.y = val;
             }
         }
+    }
+
+    // Mostrar en la UI
+    if (ieEje.amie) {
+        document.getElementById("ieInfoSection").style.display = "block";
+        document.getElementById("ieNombre").textContent = ieEje.nombre || "-";
+        document.getElementById("ieAmie").textContent = "AMIE: " + ieEje.amie;
+        document.getElementById("ieDistrito").textContent = "Distrito: " + ieEje.distrito;
+
+        if (ieEje.x && ieEje.y) {
+            const c = utmToLatLon(ieEje.x, ieEje.y);
+            document.getElementById("ieCoords").textContent =
+                `Lat: ${c.lat.toFixed(6)}, Lon: ${c.lon.toFixed(6)}`;
+        }
+    }
+}
+
 
         function extractRoutes(data) {
-            let headerRow = -1;
-            const col = {};
 
-            for (let i = 0; i < Math.min(15, data.length); i++) {
-                const row = data[i];
-                if (!row) continue;
+    let headerRow = -1;
+    const col = {};
 
-                const rowStr = row.join(' ').toUpperCase();
-                if (rowStr.includes('RUTA') && rowStr.includes('COORDENADA')) {
-                    headerRow = i;
-                    row.forEach((cell, idx) => {
-                        const c = String(cell || '').toUpperCase().trim();
-                        if (c === 'RUTA') col.ruta = idx;
-                        if (c.includes('AMIE') && c.includes('EJE') && !c.includes('FUSIONADA')) col.amieEje = idx;
-                        if (c.includes('AMIE') && (c.includes('FUSIONADA') || c.includes('COMUNIDAD'))) col.amieFusionada = idx;
-                        if (c.includes('BENEFICIARIOS') && c.includes('RUTA')) col.beneficiarios = idx;
-                        if (c.includes('DISTANCIA') && c.includes('RUTA')) col.distancia = idx;
-                        if (c === 'COORDENADA X') col.x = idx;
-                        if (c === 'COORDENADA Y') col.y = idx;
-                    });
-                    break;
-                }
-            }
+    // Detectar fila de encabezado
+    for (let i = 0; i < 20; i++) {
+        const row = data[i];
+        if (!row) continue;
 
-            if (headerRow === -1) {
-                showNotification('No se encontró formato de rutas válido', 'error');
-                return;
-            }
+        const rowStr = row.join(" ").toUpperCase();
+        if (
+            rowStr.includes("RUTA") &&
+            rowStr.includes("COORDENADA")
+        ) {
+            headerRow = i;
 
-            clearRoutes();
+            row.forEach((cell, idx) => {
+                const c = String(cell || "").toUpperCase().trim();
 
-            for (let i = headerRow + 1; i < data.length; i++) {
-                const row = data[i];
-                if (!row || !row[col.ruta]) continue;
+                if (c === "RUTA") col.ruta = idx;
+                if (c.includes("AMIE") && c.includes("EJE")) col.amieEje = idx;
+                if (c.includes("AMIE") && (c.includes("FUSIONADA") || c.includes("COMUNIDAD")))
+                    col.amieFusionada = idx;
+                if (c.includes("BENEFICIARIOS")) col.beneficiarios = idx;
+                if (c.includes("DISTANCIA") && c.includes("RUTA")) col.distancia = idx;
+                if (c === "COORDENADA X") col.x = idx;
+                if (c === "COORDENADA Y") col.y = idx;
+            });
 
-                const routeNum = row[col.ruta];
-                if (isNaN(routeNum)) continue;
-
-                const x = parseFloat(row[col.x]);
-                const y = parseFloat(row[col.y]);
-                if (isNaN(x) || isNaN(y) || x < 100 || y < 100) continue;
-
-                const route = {
-                    id: Date.now() + Math.random(),
-                    numero: routeNum,
-                    amieEje: row[col.amieEje] || ieEje.amie || '',
-                    amieFusionada: row[col.amieFusionada] || '',
-                    beneficiarios: parseInt(row[col.beneficiarios]) || 0,
-                    distancia: parseFloat(row[col.distancia]) || 0,
-                    origen:  { x, y },
-                    destino: { x: ieEje.x, y: ieEje.y },
-                    mode: 'osrm',           // o 'manual'
-                    manualGeometry: null    // array de {lat, lon} si es manual
-                };
-
-                routes.push(route);
-                // validación + dibujo
-                drawRoute(route);
-            }
+            break;
         }
+    }
+
+    if (headerRow === -1) {
+        showNotification("No se encontró encabezado de rutas", "error");
+        return;
+    }
+
+    // Reiniciar rutas en mapa
+    clearRoutes();
+
+    for (let i = headerRow + 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row || !row[col.ruta]) continue;
+
+        const rutaNum = row[col.ruta];
+        if (isNaN(rutaNum)) continue;
+
+        const xOrig = parseFloat(row[col.x]);
+        const yOrig = parseFloat(row[col.y]);
+
+        if (isNaN(xOrig) || isNaN(yOrig) || xOrig < 100000 || yOrig < 100000) continue;
+
+        const route = {
+            id: Date.now() + Math.random(),
+            numero: rutaNum,
+            amieFusionada: row[col.amieFusionada] || "",
+            amieEje: ieEje.amie,
+            beneficiarios: parseInt(row[col.beneficiarios]) || 0,
+            distancia: parseFloat(row[col.distancia]) || 0,
+
+            origen: { x: xOrig, y: yOrig },
+            destino: { x: ieEje.x, y: ieEje.y }, // 🔥 DESTINO CORRECTO
+            mode: "osrm",
+            manualGeometry: null
+        };
+
+        routes.push(route);
+        drawRoute(route);
+    }
+}
+
 
         // ==================== VALIDACIÓN DE RUTA ====================
         function validateRoute(route) {
