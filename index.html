@@ -5,11 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚌 Sistema de Rutas de Transporte Escolar - MINEDUC Ecuador</title>
 
+    <!-- Aquí sí van scripts y css del plugin -->
+    <script src="latlontools/leaflet.latlontools.js"></script>
+    <link rel="stylesheet" href="latlontools/leaflet.latlontools.css">
+</head>
+    
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        .utm-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0e1e36;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ffd33d;
+    margin-left: 20px;
+}
+
+.utm-box input {
+    background: #102544;
+    border: 1px solid #ffd33d;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    width: 145px;
+}
+
+.utm-box button {
+    background: #ffd33d;
+    color: #000;
+    border: none;
+    padding: 4px 10px;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#utmResult {
+    color: #fff;
+    margin-left: 10px;
+}
+
         :root {
             --yellow: #fcd116;
             --blue: #003893;
@@ -378,6 +418,26 @@
     </style>
 </head>
 <body>
+<header class="topbar">
+    <div class="topbar-left">
+        <h1 class="app-title">🚌 Rutas de Transporte Escolar</h1>
+
+        <!-- 🔵 ÚNICO toolbox, corregido -->
+        <div id="utm-toolbox" class="utm-box">
+            <input type="text" id="inputUTM" placeholder="UTM 17S..." />
+            <button onclick="convertUTM()">OK</button>
+            <span id="utmResult"></span>
+        </div>
+    </div>
+
+    <!-- Aquí puedes tener otros botones -->
+    <div class="topbar-right">
+        <button onclick="centerMap()">📍 Centrar</button>
+        <button onclick="debug()">🔧 Debug</button>
+        <button onclick="exportJPG()">🖼 JPG</button>
+    </div>
+</header>
+
     <div class="header"></div>
 
     <div class="header-content">
@@ -569,6 +629,30 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js"></script>
 
     <script>
+        function convertUTM() {
+    let raw = document.getElementById("inputUTM").value.trim();
+
+    if (!raw.match(/^\d+[\s,]\d+$/)) {
+        notify("Formato incorrecto. Ejemplo válido: 686181, 10024104", "error");
+        return;
+    }
+
+    raw = raw.replace(",", " ");
+    const [x, y] = raw.split(" ").map(Number);
+
+    const latlon = L.utm({
+        x,
+        y,
+        zone: 17,
+        southHemi: true
+    }).latLon();
+
+    document.getElementById("utmResult").innerHTML =
+        `Lat: ${latlon.lat.toFixed(6)}, Lon: ${latlon.lon.toFixed(6)}`;
+
+    map.setView([latlon.lat, latlon.lon], 16);
+    L.marker([latlon.lat, latlon.lon]).addTo(map);
+}
         // ==================== CONFIG ====================
         const CONFIG = {
             UTM_ZONE: 17,
