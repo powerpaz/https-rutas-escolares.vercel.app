@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 Sistema de Rutas de Transporte Escolar - MINEDUC Ecuador</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --yellow: #fcd116;
+            --blue: #003893;
+            --red: #ce1126;
+            --dark-bg: #0a1628;
+            --card-bg: rgba(15, 30, 55, 0.95);
+            --text-light: #e8f0ff;
+            --text-muted: #8ba3c7;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1a365d 50%, var(--dark-bg) 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+        }
+
+        .header {
+            background: linear-gradient(90deg, var(--yellow) 0%, var(--yellow) 33%, var(--blue) 33%, var(--blue) 66%, var(--red) 66%, var(--red) 100%);
+            height: 6px;
+        }
+
+        .header-content {
+            background: var(--card-bg);
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(252, 209, 22, 0.2);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-section h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--yellow);
+        }
+
+        .logo-section span {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 420px 1fr;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-right: 1px solid rgba(252, 209, 22, 0.2);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--yellow);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(252, 209, 22, 0.4);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(252, 209, 22, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: var(--yellow);
+            background: rgba(252, 209, 22, 0.1);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .upload-text strong {
+            color: var(--yellow);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-primary {
+            background: var(--yellow);
+            color: var(--dark-bg);
+        }
+
+        .btn-primary:hover {
+            background: #e5bc00;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--yellow);
+            border: 1px solid var(--yellow);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(252, 209, 22, 0.1);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--red);
+            color: white;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.75rem;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* IE Info Card */
+        .ie-info {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+        }
+
+        .ie-info h3 {
+            color: var(--success);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .ie-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: 5px 0;
+        }
+
+        /* Route List */
+        .route-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .route-item {
+            background: rgba(252, 209, 22, 0.05);
+            border: 1px solid rgba(252, 209, 22, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .route-item:hover {
+            border-color: var(--yellow);
+            background: rgba(252, 209, 22, 0.1);
+        }
+
+        .route-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .route-number {
+            font-weight: 600;
+            color: var(--yellow);
+        }
+
+        .route-mode-tag {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.6);
+            color: #a7f3d0;
+        }
+
+        .route-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .route-delete {
+            background: none;
+            border: none;
+            color: var(--red);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .route-delete:hover {
+            background: rgba(206, 17, 38, 0.2);
+        }
+
+        .route-info {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .route-info span {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: rgba(252, 209, 22, 0.08);
+            border: 1px solid rgba(252, 209, 22, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--yellow);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 650px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(252, 209, 22, 0.3);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--yellow);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: var(--red);
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(252, 209, 22, 0.3);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-light);
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--yellow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .coord-section {
+            background: rgba(252, 209, 22, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--yellow);
+        }
+
+        .coord-section.coord-dest {
+            border-left-color: var(--success);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .coord-section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-light);
+        }
+
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 22, 40, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(252, 209, 22, 0.2);
+            border-top-color: var(--yellow);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 15px;
+            color: var(--text-light);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            z-index: 3001;
+            transform: translateX(150%);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .notification.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .notification.info {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+
+        /* Drawing Toolbar */
+        .drawing-toolbar {
+            position: fixed;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3500;
+            background: rgba(15, 30, 55, 0.96);
+            border-radius: 10px;
+            border: 2px solid var(--yellow);
+            padding: 12px 16px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.8rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .drawing-toolbar span {
+            color: var(--yellow);
+            font-weight: 500;
+        }
+
+        .drawing-toolbar .hint {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+        }
+
+        /* Debug Panel */
+        .debug-panel {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--yellow);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .debug-panel.show {
+            display: block;
+        }
+
+        .debug-panel pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Export Buttons */
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            .sidebar {
+                max-height: 50vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header"></div>
+
+    <div class="header-content">
+        <div class="logo-section">
+            <h1>🚌 Sistema de Rutas de Transporte Escolar</h1>
+            <span>Ministerio de Educación - Ecuador</span>
+        </div>
+
+        <div class="export-buttons">
+            <button class="btn btn-secondary" onclick="centerMap()">📍 Centrar</button>
+            <button class="btn btn-secondary" onclick="toggleDebug()">🔧 Debug</button>
+            <button class="btn btn-primary" onclick="exportToJPG()">📷 JPG</button>
+            <button class="btn btn-success" onclick="exportToPDF()">📄 PDF</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+
+            <!-- Upload Section -->
+            <div class="section">
+                <div class="section-title">📁 Cargar Archivo Excel</div>
+
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv">
+                    <div class="upload-icon">📊</div>
+                    <div class="upload-text">
+                        <strong>Arrastra y suelta</strong> tu archivo Excel aquí<br>
+                        o <strong>haz clic</strong> para seleccionar
+                    </div>
+                </div>
+
+                <div class="debug-panel" id="debugPanel">
+                    <pre id="debugContent"></pre>
+                </div>
+            </div>
+
+            <!-- IE Eje Info -->
+            <div class="section" id="ieInfoSection" style="display:none;">
+                <div class="ie-info">
+                    <h3>🏫 Institución Educativa Eje (Destino)</h3>
+                    <p id="ieNombre">-</p>
+                    <p id="ieAmie">AMIE: -</p>
+                    <p id="ieDistrito">Distrito: -</p>
+                    <p id="ieCoords">Coordenadas: -</p>
+                </div>
+            </div>
+
+            <!-- Manual Route -->
+            <div class="section">
+                <div class="section-title">➕ Agregar Ruta Manual</div>
+
+                <button class="btn btn-primary btn-block" onclick="openModal()">
+                    🗺️ Nueva Ruta de Transporte
+                </button>
+            </div>
+
+            <!-- Route List -->
+            <div class="section">
+                <div class="section-title">
+                    📋 Rutas de Transporte (<span id="routeCount">0</span>)
+                </div>
+
+                <div class="route-list" id="routeList">
+                    <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                        <div style="font-size:2rem; margin-bottom:10px;">🛣️</div>
+                        <div>No hay rutas cargadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="section">
+                <div class="section-title">📊 Estadísticas</div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalRoutes">0</div>
+                        <div class="stat-label">Rutas</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalStudents">0</div>
+                        <div class="stat-label">Estudiantes</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalDistance">0</div>
+                        <div class="stat-label">Km Total</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalIE">0</div>
+                        <div class="stat-label">IE Origen</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="section">
+                <button class="btn btn-danger btn-block" onclick="clearAll()">
+                    🗑️ Limpiar Todo
+                </button>
+            </div>
+
+        </div>
+
+        <!-- MAPA -->
+        <div id="map"></div>
+    </div>
+
+
+    <!-- Modal para agregar ruta -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title">🗺️ Agregar Nueva Ruta</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+
+            <form id="routeForm" onsubmit="addManualRoute(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Número de Ruta *</label>
+                        <input type="text" class="form-input" id="routeNumber" required placeholder="Ej: 1">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Beneficiarios *</label>
+                        <input type="number" class="form-input" id="routeBeneficiaries" required placeholder="Ej: 25">
+                    </div>
+                </div>
+
+                <div class="coord-section">
+                    <div class="coord-section-title">
+                        📍 Origen (IE Fusionada/Cerrada)
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Código AMIE Origen</label>
+                        <input type="text" class="form-input" id="originAmie" placeholder="Ej: 17D01C001">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Coordenada X (UTM) *</label>
+                            <input type="text" class="form-input" id="originX" required placeholder="Ej: 765432.12">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Coordenada Y (UTM) *</label>
+                            <input type="text" class="form-input" id="originY" required placeholder="Ej: 9876543.21">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="coord-section coord-dest">
+                    <div class="coord-section-title">
+                        🏫 Destino (IE Eje) - Se autocompleta si hay IE Eje cargada
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Código AMIE Destino</label>
+                        <input type="text" class="form-input" id="destAmie" placeholder="Ej: 17D01E001">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Coordenada X (UTM) *</label>
+                            <input type="text" class="form-input" id="destX" required placeholder="Ej: 765000.00">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Coordenada Y (UTM) *</label>
+                            <input type="text" class="form-input" id="destY" required placeholder="Ej: 9876000.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Distancia (Km) - Opcional</label>
+                        <input type="text" class="form-input" id="routeDistance" placeholder="Se calcula automático">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Transporte</label>
+                        <select class="form-input" id="routeTransport">
+                            <option value="BUS">Bus</option>
+                            <option value="FURGONETA">Furgoneta</option>
+                            <option value="MINI BUS">Mini Bus</option>
+                            <option value="MICRO BUS">Micro Bus</option>
+                            <option value="CAMIONETA">Camioneta</option>
+                            <option value="FLUVIAL">Fluvial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" type="submit">
+                    ✅ Agregar Ruta
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">Procesando...</div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <!-- Toolbar de dibujo -->
+    <div class="drawing-toolbar" id="drawingToolbar">
+        <span id="drawingStatus">✏️ Modo dibujo</span>
+        <span class="hint">Clic para agregar puntos</span>
+        <button class="btn btn-secondary btn-sm" type="button" onclick="undoLastSegment()">↩ Deshacer</button>
+        <button class="btn btn-primary btn-sm" type="button" onclick="finishManualDrawing()">✅ Finalizar</button>
+        <button class="btn btn-danger btn-sm" type="button" onclick="cancelManualDrawing()">✕ Cancelar</button>
+    </div>
+
+    <!-- Librerías JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        // ==================== CONFIGURACIÓN ====================
+        const CONFIG = {
+            UTM_ZONE: 17,
+            SOUTHERN_HEMISPHERE: true,
+            DEFAULT_CENTER: [-1.8312, -78.1834], // Centro de Ecuador
+            DEFAULT_ZOOM: 7,
+            OSRM_URL: 'https://router.project-osrm.org/route/v1/driving'
+        };
+
+        // ==================== VARIABLES GLOBALES ====================
+        let map;
+        let routes = [];
+        let markers = [];
+        let polylines = [];
+        let ieEje = null;
+        let debugMode = false;
+
+        const routeColors = [
+            '#fcd116', '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+            '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'
+        ];
+
+        // MODO DIBUJO
+        let drawingMode = false;
+        let drawingRouteId = null;
+        let drawingPolyline = null;
+        let drawingPoints = [];
+        let drawingColor = '#fcd116';
+
+        // ==================== INICIALIZACIÓN ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            initFileUpload();
+            log('Sistema inicializado correctamente');
+        });
+
+        function initMap() {
+            map = L.map('map').setView(CONFIG.DEFAULT_CENTER, CONFIG.DEFAULT_ZOOM);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap | MINEDUC Ecuador',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function initFileUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) processFile(file);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) processFile(file);
+            });
+        }
+
+        // ==================== DEBUG ====================
+        function log(msg, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            let logMsg = `[${timestamp}] ${msg}`;
+            if (data) {
+                logMsg += '\n' + JSON.stringify(data, null, 2);
+            }
+            console.log(logMsg);
+            
+            const debugContent = document.getElementById('debugContent');
+            debugContent.textContent = logMsg + '\n\n' + debugContent.textContent;
+        }
+
+        function toggleDebug() {
+            debugMode = !debugMode;
+            document.getElementById('debugPanel').classList.toggle('show', debugMode);
+        }
+
+        // ==================== CONVERSIÓN UTM → LAT/LON ====================
+        function utmToLatLon(x, y, zone = CONFIG.UTM_ZONE, southern = CONFIG.SOUTHERN_HEMISPHERE) {
+            const a = 6378137.0;
+            const f = 1 / 298.257223563;
+            const k0 = 0.9996;
+
+            const e = Math.sqrt(2 * f - f * f);
+            const e2 = e * e;
+            const ePrime2 = e2 / (1 - e2);
+
+            const xAdj = x - 500000;
+            const yAdj = southern ? y - 10000000 : y;
+
+            const M = yAdj / k0;
+            const mu = M / (a * (1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256));
+
+            const e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+
+            const phi1 =
+                mu +
+                (3*e1/2 - 27*Math.pow(e1,3)/32) * Math.sin(2*mu) +
+                (21*e1*e1/16 - 55*Math.pow(e1,4)/32) * Math.sin(4*mu) +
+                (151*Math.pow(e1,3)/96) * Math.sin(6*mu);
+
+            const N1 = a / Math.sqrt(1 - e2 * Math.sin(phi1) ** 2);
+            const T1 = Math.tan(phi1) ** 2;
+            const C1 = ePrime2 * Math.cos(phi1) ** 2;
+            const R1 = a * (1 - e2) / Math.pow(1 - e2 * Math.sin(phi1) ** 2, 1.5);
+            const D = xAdj / (N1 * k0);
+
+            let lat =
+                phi1 -
+                (N1 * Math.tan(phi1) / R1) *
+                (D*D/2 -
+                 (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*ePrime2) * Math.pow(D,4)/24 +
+                 (61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*ePrime2 - 3*C1*C1) * Math.pow(D,6)/720);
+
+            const lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+            let lon =
+                lon0 +
+                (D -
+                 (1 + 2*T1 + C1) * Math.pow(D,3)/6 +
+                 (5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*ePrime2 + 24*T1*T1) * Math.pow(D,5)/120) /
+                Math.cos(phi1);
+
+            lat = lat * 180 / Math.PI;
+            lon = lon * 180 / Math.PI;
+            return { lat, lon };
+        }
+
+        // ==================== PROCESAMIENTO DE ARCHIVO ====================
+        async function processFile(file) {
+            showLoading(true, 'Leyendo archivo Excel...');
+            try {
+                log('Procesando archivo: ' + file.name);
+                const workbook = await readExcelFile(file);
+                log('Hojas encontradas: ' + workbook.SheetNames.join(', '));
+                parseExcelData(workbook);
+                showNotification('✅ Archivo cargado correctamente', 'success');
+            } catch (err) {
+                console.error(err);
+                log('Error: ' + err.message);
+                showNotification('❌ Error: ' + err.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        resolve(workbook);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = () => reject(new Error('Error al leer archivo'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function parseExcelData(workbook) {
+            // Buscar hoja con "RUTA" en el nombre o usar la primera
+            const sheetName =
+                workbook.SheetNames.find(n => n.toUpperCase().includes('RUTA')) ||
+                workbook.SheetNames[0];
+
+            log('Usando hoja: ' + sheetName);
+
+            const sheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            log('Filas encontradas: ' + jsonData.length);
+
+            // Extraer IE Eje primero
+            extractIEEje(jsonData);
+            
+            // Luego extraer las rutas
+            extractRoutes(jsonData);
+            
+            updateUI();
+            centerMap();
+        }
+
+        function extractIEEje(data) {
+            ieEje = { nombre: "", amie: "", distrito: "", x: null, y: null };
+
+            // Buscar en las primeras 20 filas
+            for (let i = 0; i < Math.min(20, data.length); i++) {
+                const row = data[i];
+                if (!row) continue;
+
+                for (let j = 0; j < row.length; j++) {
+                    const cell = String(row[j] || "").toUpperCase().trim();
+                    const nextCell = row[j + 1];
+
+                    // AMIE IE EJE
+                    if (cell.includes("AMIE") && cell.includes("EJE") && !cell.includes("FUSIONADA")) {
+                        const val = String(nextCell || "").trim();
+                        if (val && val.length > 3) {
+                            ieEje.amie = val;
+                            log('AMIE IE Eje encontrado: ' + val);
+                        }
+                    }
+
+                    // NOMBRE IE EJE
+                    if (cell.includes("NOMBRE") && (cell.includes("UNIDAD") || cell.includes("IE") || cell.includes("EDUCATIVA")) && cell.includes("EJE")) {
+                        const val = String(nextCell || "").trim();
+                        if (val && val.length > 3) {
+                            ieEje.nombre = val;
+                        }
+                    }
+
+                    // DISTRITO
+                    if (cell.includes("DISTRITO")) {
+                        const val = String(nextCell || "").trim();
+                        if (val && val.length > 1) {
+                            ieEje.distrito = val;
+                        }
+                    }
+
+                    // Coordenada X (IE eje) - Buscar específicamente en la cabecera
+                    if ((cell === "COORDENADA X" || cell === "COORDENADAS X" || cell === "X") && !cell.includes("COMUNIDAD")) {
+                        const val = parseFloat(nextCell);
+                        if (!isNaN(val) && val > 100000 && val < 1000000) {
+                            // Solo si no tenemos ya una X o si esta parece más correcta
+                            if (!ieEje.x) {
+                                ieEje.x = val;
+                                log('Coordenada X IE Eje: ' + val);
+                            }
+                        }
+                    }
+
+                    // Coordenada Y (IE eje)
+                    if ((cell === "COORDENADA Y" || cell === "COORDENADAS Y" || cell === "Y") && !cell.includes("COMUNIDAD")) {
+                        const val = parseFloat(nextCell);
+                        if (!isNaN(val) && val > 9000000 && val < 11000000) {
+                            if (!ieEje.y) {
+                                ieEje.y = val;
+                                log('Coordenada Y IE Eje: ' + val);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mostrar en la UI si tenemos datos
+            if (ieEje.amie || ieEje.x) {
+                document.getElementById("ieInfoSection").style.display = "block";
+                document.getElementById("ieNombre").textContent = ieEje.nombre || "-";
+                document.getElementById("ieAmie").textContent = "AMIE: " + (ieEje.amie || "-");
+                document.getElementById("ieDistrito").textContent = "Distrito: " + (ieEje.distrito || "-");
+
+                if (ieEje.x && ieEje.y) {
+                    const c = utmToLatLon(ieEje.x, ieEje.y);
+                    document.getElementById("ieCoords").textContent =
+                        `UTM: ${ieEje.x.toFixed(2)}, ${ieEje.y.toFixed(2)} → Lat: ${c.lat.toFixed(6)}, Lon: ${c.lon.toFixed(6)}`;
+                    log('IE Eje convertido a LatLon', c);
+                }
+            } else {
+                log('⚠️ No se encontró información de IE Eje');
+            }
+        }
+
+        function extractRoutes(data) {
+            let headerRow = -1;
+            const col = {};
+
+            // Detectar fila de encabezado buscando palabras clave
+            for (let i = 0; i < Math.min(25, data.length); i++) {
+                const row = data[i];
+                if (!row) continue;
+
+                const rowStr = row.join(" ").toUpperCase();
+                
+                // Buscar encabezado que contenga "RUTA" y alguna coordenada
+                if ((rowStr.includes("RUTA") || rowStr.includes("NÚMERO")) && 
+                    (rowStr.includes("COORDENADA") || rowStr.includes("X") || rowStr.includes("UTM"))) {
+                    
+                    headerRow = i;
+                    log('Fila de encabezado encontrada: ' + (i + 1));
+
+                    row.forEach((cell, idx) => {
+                        const c = String(cell || "").toUpperCase().trim();
+
+                        if (c === "RUTA" || c === "NÚMERO" || c === "NO." || c === "N°" || c === "NUMERO RUTA") col.ruta = idx;
+                        if (c.includes("AMIE") && (c.includes("EJE") || c.includes("DESTINO"))) col.amieEje = idx;
+                        if (c.includes("AMIE") && (c.includes("FUSIONADA") || c.includes("COMUNIDAD") || c.includes("ORIGEN") || c.includes("CERRADA"))) col.amieFusionada = idx;
+                        if (c.includes("BENEFICIARIOS") || c.includes("ESTUDIANTES") || c.includes("ALUMNOS")) col.beneficiarios = idx;
+                        if ((c.includes("DISTANCIA") && c.includes("RUTA")) || c === "KM" || c === "DISTANCIA") col.distancia = idx;
+                        if (c === "COORDENADA X" || c === "X" || c === "COORD X" || c === "UTM X") col.x = idx;
+                        if (c === "COORDENADA Y" || c === "Y" || c === "COORD Y" || c === "UTM Y") col.y = idx;
+                    });
+
+                    log('Columnas detectadas', col);
+                    break;
+                }
+            }
+
+            if (headerRow === -1) {
+                log('⚠️ No se encontró encabezado de rutas. Buscando por posición...');
+                
+                // Intento alternativo: buscar primera fila con números que parezcan coordenadas UTM
+                for (let i = 0; i < Math.min(30, data.length); i++) {
+                    const row = data[i];
+                    if (!row || row.length < 3) continue;
+                    
+                    // Buscar filas que tengan valores numéricos grandes (coordenadas UTM)
+                    for (let j = 0; j < row.length; j++) {
+                        const val = parseFloat(row[j]);
+                        if (!isNaN(val) && val > 100000 && val < 1000000) {
+                            // Parece coordenada X, la siguiente podría ser Y
+                            const nextVal = parseFloat(row[j + 1]);
+                            if (!isNaN(nextVal) && nextVal > 9000000) {
+                                // Encontramos coordenadas, el encabezado es la fila anterior
+                                headerRow = i - 1;
+                                col.x = j;
+                                col.y = j + 1;
+                                
+                                // Buscar columna de ruta (probablemente la primera con números pequeños)
+                                for (let k = 0; k < j; k++) {
+                                    const testVal = parseFloat(row[k]);
+                                    if (!isNaN(testVal) && testVal > 0 && testVal < 1000) {
+                                        col.ruta = k;
+                                        break;
+                                    }
+                                }
+                                
+                                log('Columnas detectadas por posición', col);
+                                break;
+                            }
+                        }
+                    }
+                    if (headerRow !== -1) break;
+                }
+            }
+
+            if (headerRow === -1 || col.x === undefined || col.y === undefined) {
+                showNotification('⚠️ No se encontraron coordenadas en el Excel', 'error');
+                return;
+            }
+
+            // Limpiar rutas anteriores
+            clearRoutes();
+            routes = [];
+
+            // Procesar filas de datos
+            let routesFound = 0;
+            for (let i = headerRow + 1; i < data.length; i++) {
+                const row = data[i];
+                if (!row) continue;
+
+                // Obtener número de ruta
+                let rutaNum = col.ruta !== undefined ? row[col.ruta] : routesFound + 1;
+                if (!rutaNum && routesFound === 0) continue;
+                rutaNum = rutaNum || routesFound + 1;
+
+                // Coordenadas de origen
+                const xOrig = parseFloat(row[col.x]);
+                const yOrig = parseFloat(row[col.y]);
+
+                // Validar coordenadas
+                if (isNaN(xOrig) || isNaN(yOrig)) continue;
+                if (xOrig < 100000 || xOrig > 1000000) continue;
+                if (yOrig < 9000000 || yOrig > 11000000) continue;
+
+                const route = {
+                    id: Date.now() + Math.random(),
+                    numero: rutaNum,
+                    amieFusionada: col.amieFusionada !== undefined ? String(row[col.amieFusionada] || "") : "",
+                    amieEje: ieEje?.amie || "",
+                    beneficiarios: col.beneficiarios !== undefined ? (parseInt(row[col.beneficiarios]) || 0) : 0,
+                    distancia: col.distancia !== undefined ? (parseFloat(row[col.distancia]) || 0) : 0,
+                    transporte: "BUS",
+                    origen: { x: xOrig, y: yOrig },
+                    destino: { x: ieEje?.x || null, y: ieEje?.y || null },
+                    mode: "osrm",
+                    manualGeometry: null
+                };
+
+                routes.push(route);
+                routesFound++;
+
+                log(`Ruta ${rutaNum} agregada: Origen (${xOrig.toFixed(0)}, ${yOrig.toFixed(0)})`);
+            }
+
+            log(`Total rutas encontradas: ${routesFound}`);
+
+            if (routes.length === 0) {
+                showNotification('⚠️ No se encontraron rutas válidas en el Excel', 'error');
+                return;
+            }
+
+            // Dibujar todas las rutas
+            showLoading(true, 'Calculando rutas...');
+            drawAllRoutes();
+        }
+
+        async function drawAllRoutes() {
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (let i = 0; i < routes.length; i++) {
+                const route = routes[i];
+                showLoading(true, `Calculando ruta ${i + 1} de ${routes.length}...`);
+
+                try {
+                    await drawRoute(route);
+                    successCount++;
+                } catch (err) {
+                    errorCount++;
+                    log(`Error en ruta ${route.numero}: ${err.message}`);
+                }
+
+                // Pequeña pausa para no saturar OSRM
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            showLoading(false);
+            updateUI();
+            centerMap();
+
+            if (errorCount > 0) {
+                showNotification(`✅ ${successCount} rutas dibujadas, ⚠️ ${errorCount} con errores (usa ✏️ para dibujar manual)`, 'info');
+            } else {
+                showNotification(`✅ ${successCount} rutas dibujadas correctamente`, 'success');
+            }
+        }
+
+        // ==================== DIBUJO EN MAPA ====================
+        async function drawRoute(route) {
+            const idx = routes.indexOf(route);
+            const color = routeColors[idx >= 0 ? idx % routeColors.length : 0];
+
+            // Convertir coordenadas de origen
+            const originLatLon = utmToLatLon(route.origen.x, route.origen.y);
+
+            // Crear marcador de origen
+            const originIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background:${color};width:28px;height:28px;border-radius:50%;
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:12px;font-weight:bold;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);color:#000;">
+                        ${route.numero}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+
+            const originMarker = L.marker([originLatLon.lat, originLatLon.lon], { icon: originIcon })
+                .bindPopup(`
+                    <div style="min-width:200px;">
+                        <h4 style="margin:0 0 8px 0;color:${color};">📍 Ruta ${route.numero} - Origen</h4>
+                        <p style="margin:4px 0;font-size:12px;"><b>AMIE:</b> ${route.amieFusionada || '-'}</p>
+                        <p style="margin:4px 0;font-size:12px;"><b>Beneficiarios:</b> ${route.beneficiarios}</p>
+                        <p style="margin:4px 0;font-size:11px;color:#666;">
+                            UTM: ${route.origen.x.toFixed(2)}, ${route.origen.y.toFixed(2)}
+                        </p>
+                    </div>
+                `)
+                .addTo(map);
+
+            markers.push(originMarker);
+
+            // Si hay destino (IE Eje), dibujar la ruta
+            if (route.destino && route.destino.x && route.destino.y) {
+                const destLatLon = utmToLatLon(route.destino.x, route.destino.y);
+
+                // Crear marcador de destino (solo si no existe ya)
+                const existingDest = markers.find(m => {
+                    const pos = m.getLatLng();
+                    return Math.abs(pos.lat - destLatLon.lat) < 0.0001 &&
+                           Math.abs(pos.lng - destLatLon.lon) < 0.0001;
+                });
+
+                if (!existingDest) {
+                    const destIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background:#10b981;width:36px;height:36px;border-radius:50%;
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                                🏫</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    });
+
+                    const destMarker = L.marker([destLatLon.lat, destLatLon.lon], { icon: destIcon })
+                        .bindPopup(`
+                            <div style="min-width:200px;">
+                                <h4 style="margin:0 0 8px 0;color:#10b981;">🏫 IE Eje - Destino</h4>
+                                <p style="margin:4px 0;font-size:12px;"><b>Nombre:</b> ${ieEje?.nombre || '-'}</p>
+                                <p style="margin:4px 0;font-size:12px;"><b>AMIE:</b> ${ieEje?.amie || '-'}</p>
+                            </div>
+                        `)
+                        .addTo(map);
+                    markers.push(destMarker);
+                }
+
+                // Calcular ruta con OSRM
+                try {
+                    const osrmUrl = `${CONFIG.OSRM_URL}/${originLatLon.lon},${originLatLon.lat};${destLatLon.lon},${destLatLon.lat}?overview=full&geometries=geojson`;
+                    
+                    const resp = await fetch(osrmUrl);
+                    const data = await resp.json();
+
+                    if (data.routes && data.routes[0]) {
+                        const coords = data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+
+                        const polyline = L.polyline(coords, {
+                            color: color,
+                            weight: 5,
+                            opacity: 0.85
+                        }).bindPopup(`
+                            <div>
+                                <b style="color:${color};">🚌 Ruta ${route.numero}</b><br>
+                                Distancia: ${(data.routes[0].distance / 1000).toFixed(2)} km<br>
+                                Tiempo aprox: ${Math.round(data.routes[0].duration / 60)} min<br>
+                                Beneficiarios: ${route.beneficiarios}
+                            </div>
+                        `).addTo(map);
+
+                        polylines.push(polyline);
+
+                        // Actualizar distancia calculada
+                        route.distancia = data.routes[0].distance / 1000;
+                        route.mode = 'osrm';
+
+                    } else {
+                        throw new Error('No se encontró ruta');
+                    }
+
+                } catch (err) {
+                    log(`OSRM falló para ruta ${route.numero}, dibujando línea recta`);
+                    
+                    // Fallback: línea recta
+                    const polyline = L.polyline([
+                        [originLatLon.lat, originLatLon.lon],
+                        [destLatLon.lat, destLatLon.lon]
+                    ], {
+                        color: color,
+                        weight: 3,
+                        opacity: 0.6,
+                        dashArray: '10, 10'
+                    }).bindPopup(`
+                        <div>
+                            <b style="color:${color};">🚌 Ruta ${route.numero}</b> (línea recta)<br>
+                            <i>Usa ✏️ Dibujar para trazar la ruta real</i><br>
+                            Beneficiarios: ${route.beneficiarios}
+                        </div>
+                    `).addTo(map);
+
+                    polylines.push(polyline);
+                    route.mode = 'straight';
+                }
+            }
+        }
+
+        // ==================== MODO DIBUJO MANUAL ====================
+        function drawOrEditRoute(routeId) {
+            const route = routes.find(r => r.id == routeId);
+            if (!route) return;
+
+            showNotification(`✏️ Modo dibujo activado para Ruta ${route.numero}`, 'info');
+            startManualDrawing(route);
+        }
+
+        function startManualDrawing(route) {
+            cancelManualDrawing(false);
+
+            drawingMode = true;
+            drawingRouteId = route.id;
+
+            const idx = routes.indexOf(route);
+            drawingColor = routeColors[idx >= 0 ? idx % routeColors.length : 0];
+
+            drawingPoints = [];
+
+            const toolbar = document.getElementById('drawingToolbar');
+            document.getElementById('drawingStatus').textContent = `✏️ Dibujando Ruta ${route.numero}`;
+            toolbar.style.display = 'flex';
+
+            map.on('click', handleMapClick);
+
+            // Centrar en origen
+            if (route.origen && !isNaN(route.origen.x) && !isNaN(route.origen.y)) {
+                const ll = utmToLatLon(route.origen.x, route.origen.y);
+                map.setView([ll.lat, ll.lon], 15);
+            }
+        }
+
+        async function handleMapClick(e) {
+            if (!drawingMode || drawingRouteId == null) return;
+
+            const latlng = e.latlng;
+            drawingPoints.push(latlng);
+
+            if (!drawingPolyline) {
+                drawingPolyline = L.polyline([latlng], {
+                    color: drawingColor,
+                    weight: 5,
+                    opacity: 0.9
+                }).addTo(map);
+                polylines.push(drawingPolyline);
+            } else {
+                const latlngs = drawingPolyline.getLatLngs();
+                const last = latlngs[latlngs.length - 1];
+
+                // Intentar snapping con OSRM
+                try {
+                    const osrmUrl = `${CONFIG.OSRM_URL}/${last.lng},${last.lat};${latlng.lng},${latlng.lat}?overview=full&geometries=geojson`;
+                    const resp = await fetch(osrmUrl);
+                    const data = await resp.json();
+
+                    if (data.routes && data.routes[0]) {
+                        const newCoords = data.routes[0].geometry.coordinates.map(([lon, lat]) => L.latLng(lat, lon));
+                        drawingPolyline.setLatLngs(latlngs.concat(newCoords.slice(1)));
+                    } else {
+                        drawingPolyline.setLatLngs(latlngs.concat([latlng]));
+                    }
+                } catch (err) {
+                    drawingPolyline.setLatLngs(latlngs.concat([latlng]));
+                }
+            }
+
+            // Marcador temporal
+            L.circleMarker(latlng, {
+                radius: 6,
+                color: drawingColor,
+                fillColor: '#fff',
+                fillOpacity: 1,
+                weight: 2
+            }).addTo(map);
+        }
+
+        function undoLastSegment() {
+            if (!drawingMode || !drawingPolyline || drawingPoints.length <= 1) return;
+
+            drawingPoints.pop();
+            const latlngs = drawingPolyline.getLatLngs();
+            
+            // Remover los últimos puntos (aproximadamente)
+            if (latlngs.length > 5) {
+                latlngs.splice(-5);
+                drawingPolyline.setLatLngs(latlngs);
+            }
+        }
+
+        function finishManualDrawing() {
+            if (!drawingMode || !drawingPolyline || drawingRouteId == null) {
+                cancelManualDrawing();
+                return;
+            }
+
+            const route = routes.find(r => r.id == drawingRouteId);
+            if (!route) {
+                cancelManualDrawing();
+                return;
+            }
+
+            const latlngs = drawingPolyline.getLatLngs();
+            if (!latlngs || latlngs.length < 2) {
+                showNotification('Dibuja al menos dos puntos para la ruta', 'error');
+                return;
+            }
+
+            // Guardar geometría manual
+            route.manualGeometry = latlngs.map(ll => ({ lat: ll.lat, lon: ll.lng }));
+            route.mode = 'manual';
+
+            // Calcular distancia
+            const distKm = computeDistanceKm(latlngs);
+            route.distancia = distKm;
+
+            // Estilo final
+            drawingPolyline.setStyle({
+                color: drawingColor,
+                weight: 5,
+                opacity: 0.9,
+                dashArray: null
+            });
+
+            drawingPolyline.bindPopup(`
+                <div>
+                    <b style="color:${drawingColor};">🚌 Ruta ${route.numero}</b> (manual)<br>
+                    Distancia: ${distKm.toFixed(2)} km<br>
+                    Beneficiarios: ${route.beneficiarios}
+                </div>
+            `);
+
+            showNotification(`✅ Ruta ${route.numero} dibujada: ${distKm.toFixed(2)} km`, 'success');
+
+            cancelManualDrawing(false);
+            updateUI();
+        }
+
+        function cancelManualDrawing(clearPolyline = true) {
+            drawingMode = false;
+            drawingRouteId = null;
+            drawingPoints = [];
+
+            map.off('click', handleMapClick);
+
+            const toolbar = document.getElementById('drawingToolbar');
+            toolbar.style.display = 'none';
+
+            if (clearPolyline && drawingPolyline) {
+                map.removeLayer(drawingPolyline);
+            }
+            drawingPolyline = null;
+        }
+
+        function computeDistanceKm(latlngs) {
+            let total = 0;
+            for (let i = 1; i < latlngs.length; i++) {
+                total += haversineDistance(latlngs[i - 1], latlngs[i]);
+            }
+            return total;
+        }
+
+        function haversineDistance(a, b) {
+            const R = 6371;
+            const dLat = (b.lat - a.lat) * Math.PI / 180;
+            const dLon = (b.lng - a.lng) * Math.PI / 180;
+            const lat1 = a.lat * Math.PI / 180;
+            const lat2 = b.lat * Math.PI / 180;
+
+            const sinDLat = Math.sin(dLat / 2);
+            const sinDLon = Math.sin(dLon / 2);
+
+            const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+            const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+            return R * c;
+        }
+
+        // ==================== UI ====================
+        function updateUI() {
+            const routeList = document.getElementById('routeList');
+
+            if (routes.length === 0) {
+                routeList.innerHTML = `
+                    <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                        <div style="font-size:2rem; margin-bottom:10px;">🛣️</div>
+                        <div>No hay rutas cargadas</div>
+                    </div>
+                `;
+            } else {
+                routeList.innerHTML = routes.map((route, idx) => {
+                    const color = routeColors[idx % routeColors.length];
+                    let modeTag = '';
+                    
+                    if (route.mode === 'manual') {
+                        modeTag = '<span class="route-mode-tag">✏️ Manual</span>';
+                    } else if (route.mode === 'osrm') {
+                        modeTag = '<span class="route-mode-tag" style="border-color:#3b82f6;color:#bfdbfe;background:rgba(59,130,246,0.1);">🛣️ OSRM</span>';
+                    } else {
+                        modeTag = '<span class="route-mode-tag" style="border-color:#f59e0b;color:#fde68a;background:rgba(245,158,11,0.1);">📏 Línea</span>';
+                    }
+
+                    return `
+                    <div class="route-item">
+                        <div class="route-header">
+                            <span class="route-number" style="color:${color}">
+                                🚌 Ruta ${route.numero}
+                            </span>
+                            ${modeTag}
+                        </div>
+                        <div class="route-info">
+                            <span>📍 AMIE Origen: ${route.amieFusionada || '-'}</span>
+                            <span>👥 Beneficiarios: ${route.beneficiarios}</span>
+                            <span>📏 Distancia: ${route.distancia ? route.distancia.toFixed(2) : '-'} km</span>
+                        </div>
+                        <div class="route-actions" style="margin-top:8px;">
+                            <button class="btn btn-secondary btn-sm" onclick="drawOrEditRoute('${route.id}')">
+                                ✏️ Dibujar
+                            </button>
+                            <button class="btn btn-sm" style="background:#3b82f6;color:#fff;" onclick="zoomToRoute('${route.id}')">
+                                🔍 Ver
+                            </button>
+                            <button class="route-delete" onclick="deleteRoute('${route.id}')">✕</button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('routeCount').textContent = routes.length;
+            document.getElementById('totalRoutes').textContent = routes.length;
+            document.getElementById('totalStudents').textContent = routes.reduce((s, r) => s + r.beneficiarios, 0);
+            document.getElementById('totalDistance').textContent = routes.reduce((s, r) => s + (r.distancia || 0), 0).toFixed(1);
+            document.getElementById('totalIE').textContent = new Set(routes.map(r => r.amieFusionada).filter(a => a)).size;
+        }
+
+        function zoomToRoute(routeId) {
+            const route = routes.find(r => r.id == routeId);
+            if (!route) return;
+
+            const ll = utmToLatLon(route.origen.x, route.origen.y);
+            map.setView([ll.lat, ll.lon], 14);
+        }
+
+        function deleteRoute(id) {
+            routes = routes.filter(r => r.id != id);
+            redrawMap();
+            updateUI();
+            showNotification('Ruta eliminada', 'info');
+        }
+
+        function clearRoutes() {
+            markers.forEach(m => map.removeLayer(m));
+            polylines.forEach(p => {
+                if (map.hasLayer(p)) map.removeLayer(p);
+            });
+            markers = [];
+            polylines = [];
+        }
+
+        function redrawMap() {
+            clearRoutes();
+            routes.forEach(route => {
+                if (route.mode === 'manual' && route.manualGeometry) {
+                    const idx = routes.indexOf(route);
+                    const color = routeColors[idx >= 0 ? idx % routeColors.length : 0];
+                    const latlngs = route.manualGeometry.map(p => L.latLng(p.lat, p.lon));
+                    const polyline = L.polyline(latlngs, {
+                        color,
+                        weight: 5,
+                        opacity: 0.9
+                    }).addTo(map);
+                    polylines.push(polyline);
+                } else {
+                    drawRoute(route);
+                }
+            });
+        }
+
+        function clearAll() {
+            if (!confirm('¿Está seguro de eliminar todas las rutas?')) return;
+            routes = [];
+            ieEje = null;
+            clearRoutes();
+            updateUI();
+            document.getElementById('ieInfoSection').style.display = 'none';
+            showNotification('Todo limpiado', 'info');
+        }
+
+        function centerMap() {
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // ==================== MODAL ====================
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+
+            // Autocompletar destino si hay IE Eje
+            if (ieEje) {
+                document.getElementById('destAmie').value = ieEje.amie || '';
+                document.getElementById('destX').value = ieEje.x || '';
+                document.getElementById('destY').value = ieEje.y || '';
+            }
+
+            // Autocompletar número de ruta
+            const nextNum = routes.length > 0 ? Math.max(...routes.map(r => parseInt(r.numero) || 0)) + 1 : 1;
+            document.getElementById('routeNumber').value = nextNum;
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        async function addManualRoute(e) {
+            e.preventDefault();
+
+            const route = {
+                id: Date.now(),
+                numero: document.getElementById('routeNumber').value,
+                amieFusionada: document.getElementById('originAmie').value,
+                amieEje: document.getElementById('destAmie').value,
+                beneficiarios: parseInt(document.getElementById('routeBeneficiaries').value) || 0,
+                distancia: parseFloat(document.getElementById('routeDistance').value) || 0,
+                transporte: document.getElementById('routeTransport').value,
+                origen: {
+                    x: parseFloat(document.getElementById('originX').value),
+                    y: parseFloat(document.getElementById('originY').value)
+                },
+                destino: {
+                    x: parseFloat(document.getElementById('destX').value),
+                    y: parseFloat(document.getElementById('destY').value)
+                },
+                mode: 'osrm',
+                manualGeometry: null
+            };
+
+            // Validar
+            if (isNaN(route.origen.x) || isNaN(route.origen.y)) {
+                showNotification('❌ Coordenadas de origen inválidas', 'error');
+                return;
+            }
+
+            routes.push(route);
+
+            showLoading(true, 'Calculando ruta...');
+            try {
+                await drawRoute(route);
+                updateUI();
+                closeModal();
+                centerMap();
+                showNotification('✅ Ruta agregada correctamente', 'success');
+            } catch (err) {
+                showNotification('⚠️ Ruta agregada, usa ✏️ para dibujar', 'info');
+                updateUI();
+                closeModal();
+            } finally {
+                showLoading(false);
+            }
+
+            document.getElementById('routeForm').reset();
+        }
+
+        // ==================== EXPORTAR ====================
+        async function exportToJPG() {
+            showLoading(true, 'Generando imagen...');
+            try {
+                const mapElement = document.getElementById('map');
+                const canvas = await html2canvas(mapElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scale: 2
+                });
+
+                const link = document.createElement('a');
+                const amie = ieEje?.amie || 'mapa';
+                const date = new Date().toISOString().slice(0, 10);
+                link.download = `rutas_transporte_${amie}_${date}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+
+                showNotification('📷 Mapa exportado como JPG', 'success');
+            } catch (err) {
+                console.error(err);
+                showNotification('Error al exportar JPG', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function exportToPDF() {
+            showLoading(true, 'Generando PDF...');
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'mm', 'a4');
+
+                // Bandera Ecuador
+                doc.setFillColor(252, 209, 22);
+                doc.rect(0, 0, 297, 8, 'F');
+                doc.setFillColor(0, 56, 147);
+                doc.rect(0, 8, 297, 3, 'F');
+                doc.setFillColor(206, 17, 38);
+                doc.rect(0, 11, 297, 2, 'F');
+
+                // Título
+                doc.setFontSize(18);
+                doc.setTextColor(0, 56, 147);
+                doc.text('INFORME DE RUTAS DE TRANSPORTE ESCOLAR', 148.5, 25, { align: 'center' });
+
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text('Ministerio de Educación - Ecuador', 148.5, 32, { align: 'center' });
+
+                // Datos IE eje
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                let yPos = 45;
+
+                if (ieEje && ieEje.amie) {
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Institución Educativa Eje:', 20, yPos);
+                    doc.setFont(undefined, 'normal');
+                    doc.text(ieEje.nombre || '-', 80, yPos);
+                    yPos += 7;
+                    doc.text(`AMIE: ${ieEje.amie || '-'}`, 20, yPos);
+                    doc.text(`Distrito: ${ieEje.distrito || '-'}`, 120, yPos);
+                }
+
+                // Resumen
+                yPos += 15;
+                doc.setFont(undefined, 'bold');
+                doc.text('Resumen:', 20, yPos);
+                doc.setFont(undefined, 'normal');
+                yPos += 7;
+
+                const stats = [
+                    `Total de Rutas: ${routes.length}`,
+                    `Total de Beneficiarios: ${routes.reduce((s, r) => s + r.beneficiarios, 0)}`,
+                    `Distancia Total: ${routes.reduce((s, r) => s + (r.distancia || 0), 0).toFixed(2)} km`,
+                    `Fecha: ${new Date().toLocaleDateString('es-EC')}`
+                ];
+                stats.forEach(line => {
+                    doc.text(line, 25, yPos);
+                    yPos += 6;
+                });
+
+                // Captura del mapa
+                const mapElement = document.getElementById('map');
+                const canvas = await html2canvas(mapElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scale: 2
+                });
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                doc.addImage(imgData, 'JPEG', 20, yPos + 5, 180, 100);
+
+                yPos = yPos + 110;
+                if (yPos > 180) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                // Tabla de detalle
+                doc.setFont(undefined, 'bold');
+                doc.text('Detalle de Rutas:', 20, yPos);
+                yPos += 8;
+
+                doc.setFillColor(0, 56, 147);
+                doc.setTextColor(255, 255, 255);
+                doc.rect(20, yPos - 4, 257, 8, 'F');
+
+                doc.setFontSize(9);
+                doc.text('Ruta', 25, yPos);
+                doc.text('AMIE Origen', 50, yPos);
+                doc.text('Beneficiarios', 110, yPos);
+                doc.text('Distancia (km)', 150, yPos);
+                doc.text('Modo', 200, yPos);
+
+                yPos += 8;
+                doc.setTextColor(0, 0, 0);
+                doc.setFont(undefined, 'normal');
+
+                routes.slice(0, 20).forEach((route, idx) => {
+                    if (idx % 2 === 0) {
+                        doc.setFillColor(245, 245, 245);
+                        doc.rect(20, yPos - 4, 257, 7, 'F');
+                    }
+
+                    doc.text(String(route.numero), 25, yPos);
+                    doc.text(route.amieFusionada || '-', 50, yPos);
+                    doc.text(String(route.beneficiarios), 115, yPos);
+                    doc.text((route.distancia || 0).toFixed(2), 155, yPos);
+                    doc.text(route.mode === 'manual' ? 'Manual' : 'OSRM', 200, yPos);
+
+                    yPos += 7;
+                    if (yPos > 190) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                });
+
+                // Pie de página
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text(
+                        `Generado el ${new Date().toLocaleString('es-EC')} | Página ${i} de ${pageCount}`,
+                        148.5, 205, { align: 'center' }
+                    );
+                }
+
+                const amie = ieEje?.amie || 'rutas';
+                const date = new Date().toISOString().slice(0, 10);
+                doc.save(`informe_transporte_${amie}_${date}.pdf`);
+                showNotification('📄 PDF generado correctamente', 'success');
+
+            } catch (err) {
+                console.error(err);
+                showNotification('Error al generar PDF', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ==================== UTILIDADES ====================
+        function showLoading(show, text = 'Procesando...') {
+            document.getElementById('loading').classList.toggle('show', show);
+            document.getElementById('loadingText').textContent = text;
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                if (drawingMode) cancelManualDrawing();
+            }
+        });
+    </script>
+</body>
+</html>
