@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- ESTILO ORIGINAL (sin tocar) -->
+    <!-- ESTILOS ORIGINALES (sin cambios) -->
     <style>
         .utm-box {
             display: flex;
@@ -47,7 +47,7 @@
             margin-left: 10px;
         }
 
-        /* ----- RESTO DE TUS ESTILOS ORIGINALES (SIN CAMBIOS) ----- */
+        /* ---------- RESTO DE TUS ESTILOS ORIGINALES (SIN CAMBIOS) ---------- */
         :root {
             --yellow: #fcd116;
             --blue: #003893;
@@ -453,7 +453,12 @@
             document.getElementById("utmResult").innerHTML =
                 `Lat: ${latlon.lat.toFixed(6)}, Lon: ${latlon.lon.toFixed(6)}`;
             map.setView([latlon.lat, latlon.lon], 16);
-            L.marker([latlon.lat, latlon.lon]).addTo(map);
+            L.marker([latlon.lat, latlon.lon], {
+                icon: L.icon({
+                    iconUrl: "assets/marker-utm.png",
+                    iconSize: [32, 32]
+                })
+            }).addTo(map);
         }
 
         /* ---------- RESTO DE TU CÓDIGO ORIGINAL (SIN CAMBIOS) ---------- */
