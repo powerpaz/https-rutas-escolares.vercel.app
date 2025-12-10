@@ -48,9 +48,12 @@
         }
 
         .logo-section h1 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--yellow);
+            .logo-section .logo-img {
+                height: 60px;
+                width: auto;
+                object-fit: contain;
+                filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
         }
 
         .logo-section span {
@@ -641,7 +644,7 @@
         <div class="logo-section" style="display: flex; align-items: center; gap: 12px;">
             <h1 style="display: flex; align-items: center; gap: 10px;">
                 🚌 Sistema de calculo de Rutas de Transporte Escolar - MINEDEC
-                <img src="logo.png" alt="Ecuador" style="height: 32px;">
+                <img src="logo.png" alt="Ecuador" class="logo-img">
             </h1>
             <span>DPI-CGPGE</span>
         </div>
